@@ -1,26 +1,27 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-const box = 20; // Size of each square
-
+const box = 20;
 let score = 0;
 let snake = [{ x: 200, y: 200 }];
 let direction = "RIGHT";
+let game;
+let gameRunning = false;
+
+// Snake and food colors
+let snakeHeadColor = "lime";
+let snakeBodyColor = "green";
 
 let food = {
   x: Math.floor(Math.random() * (canvas.width / box)) * box,
   y: Math.floor(Math.random() * (canvas.height / box)) * box,
 };
 
-// Snake color (head and body)
-let snakeHeadColor = "lime";
-let snakeBodyColor = "green";
-
-let game; // for interval
-let gameRunning = false;
+// Leaderboard
+let leaderboard = JSON.parse(localStorage.getItem("leaderboard")) || [];
 
 document.addEventListener("keydown", (e) => {
-  if (!gameRunning) return; // ignore keys if game not running
+  if (!gameRunning) return;
   changeDirection(e);
 });
 
@@ -33,42 +34,20 @@ function changeDirection(e) {
 }
 
 function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Draw snake
-  for (let i = 0; i < snake.length; i++) {
-    ctx.fillStyle = i === 0 ? snakeHeadColor : snakeBodyColor;
-    ctx.fillRect(snake[i].x, snake[i].y, box, box);
-  }
-
-  // Draw food
-  ctx.fillStyle = "red";
-  ctx.fillRect(food.x, food.y, box, box);
-
-  // Move snake
+  // Move snake by creating a new head
   let head = { x: snake[0].x, y: snake[0].y };
-
   if (direction === "LEFT") head.x -= box;
   if (direction === "RIGHT") head.x += box;
   if (direction === "UP") head.y -= box;
   if (direction === "DOWN") head.y += box;
 
-  // Game Over if hit wall or itself
-  if (
-    head.x < 0 || head.x >= canvas.width ||
-    head.y < 0 || head.y >= canvas.height ||
-    collision(head, snake)
-  ) {
-    clearInterval(game);
-    alert("Game Over! Your score: " + score);
-    gameRunning = false;
-    // Re-enable start button
-    document.getElementById("startBtn").disabled = false;
-    
-    return;
-  }
+  let hitWall = head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height;
+  let hitSelf = collision(head, snake);
 
-  // If snake eats food
+  // Add new head
+  snake.unshift(head);
+
+  // Check if food eaten
   if (head.x === food.x && head.y === food.y) {
     score++;
     document.getElementById("score").textContent = "Score: " + score;
@@ -77,10 +56,29 @@ function draw() {
       y: Math.floor(Math.random() * (canvas.height / box)) * box,
     };
   } else {
-    snake.pop();
+    snake.pop(); // remove tail if no food eaten
   }
 
-  snake.unshift(head);
+  // Draw everything
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < snake.length; i++) {
+    ctx.fillStyle = i === 0 ? snakeHeadColor : snakeBodyColor;
+    ctx.fillRect(snake[i].x, snake[i].y, box, box);
+  }
+  ctx.fillStyle = "red";
+  ctx.fillRect(food.x, food.y, box, box);
+
+  // Game over logic
+  if (hitWall || hitSelf) {
+    clearInterval(game);
+    setTimeout(() => {
+      alert("Game Over! Your score: " + score);
+      gameRunning = false;
+      document.getElementById("startBtn").disabled = false;
+      updateLeaderboard(score);
+    }, 50);
+    return;
+  }
 }
 
 function collision(head, array) {
@@ -92,24 +90,8 @@ function collision(head, array) {
   return false;
 }
 
-function drawPreviewSnake() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  // Draw snake at initial position
-  for (let i = 0; i < snake.length; i++) {
-    ctx.fillStyle = i === 0 ? snakeHeadColor : snakeBodyColor;
-    ctx.fillRect(snake[i].x, snake[i].y, box, box);
-  }
-  // Draw food as well
-  ctx.fillStyle = "red";
-  ctx.fillRect(food.x, food.y, box, box);
-}
-
 function startGame() {
   if (game) clearInterval(game);
-
-  // disable start (game running)
-  
-  document.getElementById("startBtn").disabled = true;
 
   score = 0;
   document.getElementById("score").textContent = "Score: " + score;
@@ -122,14 +104,11 @@ function startGame() {
   };
 
   gameRunning = true;
+  document.getElementById("startBtn").disabled = true;
   game = setInterval(draw, 100);
 }
 
-document.getElementById("startBtn").addEventListener("click", startGame);
-
-
-
-// Change Color button logic
+// Change snake color
 document.getElementById("colorBtn").addEventListener("click", () => {
   const colors = [
     ["lime", "green"],
@@ -143,12 +122,41 @@ document.getElementById("colorBtn").addEventListener("click", () => {
   snakeHeadColor = headColor;
   snakeBodyColor = bodyColor;
 
-  // Redraw preview snake if game not running
-  if (!gameRunning) {
-    drawPreviewSnake();
-  }
+  if (!gameRunning) drawPreviewSnake();
 });
 
+// Draw preview snake
+function drawPreviewSnake() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < snake.length; i++) {
+    ctx.fillStyle = i === 0 ? snakeHeadColor : snakeBodyColor;
+    ctx.fillRect(snake[i].x, snake[i].y, box, box);
+  }
+  ctx.fillStyle = "red";
+  ctx.fillRect(food.x, food.y, box, box);
+}
 
-// Draw initial preview snake with default colors
+// Leaderboard handling
+function updateLeaderboard(newScore) {
+  const name = prompt("Enter your name for the leaderboard:") || "Anonymous";
+  leaderboard.push({ name, score: newScore });
+  leaderboard.sort((a, b) => b.score - a.score);
+  leaderboard = leaderboard.slice(0, 5);
+  localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
+  renderLeaderboard();
+}
+
+function renderLeaderboard() {
+  const board = document.getElementById("leaderboard");
+  board.innerHTML = "";
+  leaderboard.forEach(entry => {
+    const li = document.createElement("li");
+    li.textContent = `${entry.name}: ${entry.score}`;
+    board.appendChild(li);
+  });
+}
+
+renderLeaderboard();
 drawPreviewSnake();
+
+document.getElementById("startBtn").addEventListener("click", startGame);
