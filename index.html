@@ -1,20 +1,25 @@
 <head>
   <meta charset="UTF-8" />
-  <title>Snake Game</title>
+  <title>🐍 Snake Game</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
   <h1>🐍 Snake Game</h1>
+
   <canvas id="gameCanvas" width="600" height="600"></canvas>
   <p id="score">Score: 0</p>
 
   <div id="buttons" style="text-align:center; margin-top:10px;">
-  <button id="startBtn">Start</button>
- 
-  <button id="colorBtn">Change Color</button>
-</div>
+    <button id="startBtn">Start</button>
+    <button id="colorBtn">Change Color</button>
+  </div>
 
+  <!-- 🏆 Leaderboard Section -->
+  <div id="leaderboard-container" style="text-align: center; margin-top: 20px;">
+    <h2>🏆 Leaderboard</h2>
+    <ol id="leaderboard" style="font-family: monospace;"></ol>
+  </div>
 
   <script src="script.js"></script>
-</body>
+</body> 
